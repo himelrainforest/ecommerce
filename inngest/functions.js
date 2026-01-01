@@ -1,59 +1,63 @@
 import { inngest } from "./client";
+import { prisma } from "@/lib/prisma";
 
-
-//inngest functtion to create user
+// CREATE
 export const syncUserCreation = inngest.createFunction(
   { id: "sync-user-creation" },
   { event: "clerk/user.created" },
   async ({ event }) => {
-    const {data} = event
+    const { data } = event;
+
     await prisma.user.create({
+      data: {
+        id: data.id,
+        email: data.email_addresses[0].email_address,
+        name: [data.first_name, data.last_name].filter(Boolean).join(" "),
+        image: data.image_url,
+      },
+    });
 
-        data: {
-            id: data.id,
-            email: data.email_addresses[0].email_addresses,
-            name: `${data.first_name} ${data.last_name}`,
-            image: data.image_url,
-
-        }
-
-    })
+    return { success: true };
   }
 );
 
-
-// inngest function to update user
+// UPDATE (UPSERT)
 export const syncUserUpdation = inngest.createFunction(
-    { id: "sync-user-update" },
+  { id: "sync-user-update" },
   { event: "clerk/user.updated" },
+  async ({ event }) => {
+    const { data } = event;
 
-  async ({event})=> {
+    await prisma.user.upsert({
+      where: { id: data.id },
+      update: {
+        email: data.email_addresses[0].email_address,
+        name: [data.first_name, data.last_name].filter(Boolean).join(" "),
+        image: data.image_url,
+      },
+      create: {
+        id: data.id,
+        email: data.email_addresses[0].email_address,
+        name: [data.first_name, data.last_name].filter(Boolean).join(" "),
+        image: data.image_url,
+      },
+    });
 
-    const {data} = event
-    await prisma.user.update({
-        where: {id:data.id,},
-
-        data: {
-           email: data.email_addresses[0].email_addresses,
-            name: `${data.first_name} ${data.last_name}`,
-            image: data.image_url,
-
-        }
-    })
+    return { success: true };
   }
-)
+);
 
-//inngest function ot delete user
-
+// DELETE
 export const syncUserDeletion = inngest.createFunction(
-    { id: "sync-user-delete" },
+  { id: "sync-user-delete" },
   { event: "clerk/user.deleted" },
+  async ({ event }) => {
+    const { data } = event;
 
-  async ({event})=> {
+    await prisma.user.deleteMany({
+      where: { id: data.id },
+    });
 
-    const {data} = event
-    await prisma.user.delete({
-        where: {id: data.id,},
-    })
+    return { success: true };
   }
-)
+);
